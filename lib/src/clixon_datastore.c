@@ -1091,6 +1091,7 @@ xmldb_remove_stateonly(clixon_handle h, const char *db)
 	goto finished;
     if (xml_rm(xvec[xlen - 1]) < 0)
 	goto done;
+    xml_free(xvec[xlen - 1]);
  finished:
     de->de_has_stateonly = 0;
     retval = 0;
