@@ -1116,7 +1116,7 @@ xmldb_read_stateonly(clixon_handle h, const char *db, cxobj *x)
 {
     int       retval = -1;
     int       ret;
-    db_elmnt *de;
+    db_elmnt *de = NULL;
     cxobj    *xc, *xp, *xn, *xo;
     char     *ns;
     cvec     *c;
@@ -1126,20 +1126,21 @@ xmldb_read_stateonly(clixon_handle h, const char *db, cxobj *x)
     if (!c)
 	return 0;
 
-    if ((de = clicon_db_elmnt_get(h, db)) == NULL){
-        clixon_err(OE_CFG, EFAULT, "datastore %s does not exist", db);
-        return -1;
-    }
-    if (de->de_has_stateonly)
-	goto finished;
-
     if (!x) {
+	if ((de = clicon_db_elmnt_get(h, db)) == NULL){
+	    clixon_err(OE_CFG, EFAULT, "datastore %s does not exist", db);
+	    return -1;
+	}
+	if (de->de_has_stateonly)
+	    goto finished;
+
 	if ((x = xmldb_cache_get(h, db)) == NULL){
 	    clixon_err(OE_XML, 0, "XML cache not found");
 	    goto done;
 	}
     }
 
+    /* Go through all the stateonly registrations to add each of them. */
     for (i = 0; i < cvec_len(c); i++) {
 	struct clixon_stateonly_data *data;
 	cg_var                       *cv = cvec_i(c, i);
@@ -1150,6 +1151,7 @@ xmldb_read_stateonly(clixon_handle h, const char *db, cxobj *x)
 	if (!data)
 	    continue;
 
+	/* Find the place in the tree to add this item. */
 	xc = x;
 	xp = NULL;
 	xn = data->path;
@@ -1162,9 +1164,14 @@ xmldb_read_stateonly(clixon_handle h, const char *db, cxobj *x)
 	if (xp == NULL)
 	    continue; /* Empty paths aren't allowed. */
 	if (xc) {
+	    /* If it already exists, remove it. */
 	    if (xml_rm(xc) == 0)
 		xml_free(xc);
 	} else {
+	    /*
+	     * If it doesn't already exists, we may need to add things
+	     * to the tree to reach the place we want.
+	     */
 	    while (xn) {
 		cbuf *cb;
 
@@ -1195,11 +1202,13 @@ xmldb_read_stateonly(clixon_handle h, const char *db, cxobj *x)
 		    goto done; /* FIXME - Shouldn't be possible? */
 	    }
 	}
+	/* Now add the data. */
 	if ((ret = data->getstate(data->sdata, xp)) < 0)
 	    goto done;
     }
-    
-    de->de_has_stateonly = 1;
+
+    if (de)
+	de->de_has_stateonly = 1;
  finished:
     retval = 0;
  done:
@@ -1220,7 +1229,7 @@ int
 xmldb_remove_stateonly(clixon_handle h, const char *db, cxobj *x)
 {
     int         retval = -1;
-    db_elmnt    *de;
+    db_elmnt    *de = NULL;
     cxobj       *xc, *xn;
     cvec        *c;
     unsigned int i;
@@ -1229,12 +1238,12 @@ xmldb_remove_stateonly(clixon_handle h, const char *db, cxobj *x)
     if (!c)
 	return 0;
 
-    if ((de = clicon_db_elmnt_get(h, db)) == NULL){
-        clixon_err(OE_CFG, EFAULT, "datastore %s does not exist", db);
-        return -1;
-    }
-
     if (!x) {
+	if ((de = clicon_db_elmnt_get(h, db)) == NULL){
+	    clixon_err(OE_CFG, EFAULT, "datastore %s does not exist", db);
+	    return -1;
+	}
+
 	if (!de->de_has_stateonly)
 	    goto finished;
 
@@ -1243,7 +1252,8 @@ xmldb_remove_stateonly(clixon_handle h, const char *db, cxobj *x)
 	    goto done;
 	}
     }
-    
+
+    /* For each registered stateonly. */
     for (i = 0; i < cvec_len(c); i++) {
 	struct clixon_stateonly_data *data;
 	cg_var                       *cv = cvec_i(c, i);
@@ -1254,6 +1264,7 @@ xmldb_remove_stateonly(clixon_handle h, const char *db, cxobj *x)
 	if (!data)
 	    continue;
 
+	/* Search down the tree to find this item. */
 	xc = x;
 	xn = data->path;
 	while (xn) {
@@ -1261,11 +1272,13 @@ xmldb_remove_stateonly(clixon_handle h, const char *db, cxobj *x)
 		break;
 	    xn = xml_child_i_type(xn, 0, CX_ELMNT);
 	}
+	/* If we found it, remove it. */
 	if (xc && xml_rm(xc) == 0)
 	    xml_free(xc);
     }
  finished:
-    de->de_has_stateonly = 0;
+    if (de)
+	de->de_has_stateonly = 0;
     retval = 0;
  done:
     return retval;
