@@ -1207,6 +1207,9 @@ xmldb_read_stateonly(clixon_handle h, const char *db, cxobj *x)
 	    goto done;
     }
 
+    if (xml_sort_recurse(x) < 0)
+	goto done;
+
     if (de)
 	de->de_has_stateonly = 1;
  finished:
