@@ -677,7 +677,7 @@ example_statefile(clixon_handle     h,
  * @retval    -1   Error
  *
  * System-only config data as defined by _ is not written to datastore.
- * Instead, in this ocmmit action, it is written to file _state_file
+ * Instead, in this commit action, it is written to file _state_file
  * @see main_system_only_commit  callback for reading data
  * @note  Only single system-only config data supported
  */
